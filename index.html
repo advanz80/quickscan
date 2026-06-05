@@ -255,10 +255,12 @@ async function vraagAITekst(scan){
   if(res.status===401 || res.status===403){ logout(); throw new Error('Toegangscode onjuist — log opnieuw in.'); }
   if(!res.ok) throw new Error(`AI-koppeling gaf status ${res.status}. Controleer de webhook-URL.`);
   let data = await res.json();
+  if(Array.isArray(data)) data = data[0] || {};   // n8n geeft vaak [ {...} ] terug
   // Tolerant: accepteer {themas,kansen} (Parse AI-node) óf rauwe LLM-Chain output.
   if(data && data.themas) return data;
   let content = data?.response?.text ?? data?.text ?? data?.output
              ?? data?.choices?.[0]?.message?.content ?? data?.content ?? data;
+  if(Array.isArray(content)) content = content[0];
   if(typeof content !== 'string') return content;
   content = content.replace(/```json\s*|```/g,'').trim();
   const a = content.indexOf('{'), b = content.lastIndexOf('}');
@@ -334,6 +336,7 @@ $('genereer').addEventListener('click', async ()=>{
 
     setStatus('🤖 Rapporttekst genereren via de AI-koppeling…');
     const ai = await vraagAITekst(scan);
+    if(!ai || !ai.themas) throw new Error('AI-respons bevat geen "themas" — controleer de Parse AI / Respond-node in n8n.');
 
     setStatus('📄 Sjabloon ophalen en invullen…');
     const tpl = await fetch(CONFIG.TEMPLATE_URL).then(r=>{ if(!r.ok) throw new Error('Sjabloon niet gevonden op '+CONFIG.TEMPLATE_URL); return r.arrayBuffer(); });
