@@ -254,7 +254,13 @@ async function vraagAITekst(scan){
   });
   if(res.status===401 || res.status===403){ logout(); throw new Error('Toegangscode onjuist — log opnieuw in.'); }
   if(!res.ok) throw new Error(`AI-koppeling gaf status ${res.status}. Controleer de webhook-URL.`);
-  let data = await res.json();
+  const raw = await res.text();
+  if(!raw || !raw.trim() || raw.trim()==='{}'){
+    throw new Error('Lege/ongeldige respons van n8n — waarschijnlijk een fout in de flow (bv. de Parse AI-node of afgekapte AI-output). Check de laatste uitvoering in n8n.');
+  }
+  let data;
+  try { data = JSON.parse(raw); }
+  catch(e){ throw new Error('Ongeldige JSON van n8n: ' + raw.slice(0,200)); }
   if(Array.isArray(data)) data = data[0] || {};   // n8n geeft vaak [ {...} ] terug
   // Tolerant: accepteer {themas,kansen} (Parse AI-node) óf rauwe LLM-Chain output.
   if(data && data.themas) return data;
