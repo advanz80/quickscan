@@ -138,6 +138,7 @@
       <div class="veld"><label>Type organisatie</label><input type="text" id="type_organisatie" placeholder="bijv. Gemeente (publiek)"></div>
       <div class="veld"><label>Grootte</label><input type="text" id="grootte" placeholder="bijv. 420 medewerkers"></div>
       <div class="veld"><label>Datum scan</label><input type="date" id="datum_scan"></div>
+      <div class="veld full"><label>Algemene organisatieomschrijving</label><textarea id="organisatieomschrijving" placeholder="Korte beschrijving van de organisatie, sector, context…"></textarea></div>
       <div class="veld full"><label>Aandachtspunten uit intake</label><textarea id="aandachtspunten"></textarea></div>
       <div class="veld full"><label>Specifieke vraagstukken (optioneel)</label><textarea id="specifieke_vraagstukken"></textarea></div>
       <div class="veld"><label>Consultant</label><input type="text" id="consultant_naam" placeholder="Naam"></div>
@@ -235,7 +236,7 @@ async function fillPdf(tplBytes, scan, ai){
   setText(CV.naamVoorblad,m.naam_organisatie); setText(CV.datumVoorblad,m.datum_scan); setText(CV.naamOrg,naamAfd);
   setText(CV.typeOrg,m.datum_scan);            // veld staat onder label "Datum scan"
   setText(CV.datumScan,m.type_organisatie);    // veld staat onder label "Type organisatie"
-  setText(CV.grootte,m.grootte); setText(CV.aandachtspunten,m.aandachtspunten); setText(CV.vraagstukken,m.specifieke_vraagstukken);
+  setText(CV.grootte,m.grootte); setText(CV.aandachtspunten, ai.aandachtspunten || m.aandachtspunten); setText(CV.vraagstukken,m.specifieke_vraagstukken);
   setText(CV.consultantNaam,m.consultant_naam); setText(CV.consultantFunctie,m.consultant_functie);
   for(let n=1;n<=8;n++){const v=TV[n];const a=(ai.themas&&(ai.themas[n]||ai.themas[String(n)]))||{};setText(v.d,a.korte_duiding);setText(v.w,a.wat_valt_op);setText(v.s,a.secundair);setText(v.p,a.praktijk);}
   setText(KX.reflectie,ai.kansen?.reflectie); setText(KX.suggesties,ai.kansen?.suggesties);
@@ -325,6 +326,7 @@ function metaUitForm(){
     type_organisatie:g('type_organisatie'), grootte:g('grootte'),
     datum_scan:datum||new Date().toLocaleDateString('nl-NL'),
     aandachtspunten:g('aandachtspunten'), specifieke_vraagstukken:g('specifieke_vraagstukken'),
+    organisatieomschrijving:g('organisatieomschrijving'),
     consultant_naam:g('consultant_naam'), consultant_functie:g('consultant_functie'),
   };
 }
