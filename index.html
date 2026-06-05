@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quickscan HR &amp; Organisatie — rapportgenerator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Libraries (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+  :root{
+    --oranje:#B64817; --oranje-licht:#F6AF9D; --oranje-zacht:#F4E3DB;
+    --blauw:#1c3d5a; --groen:#8FB08C; --crème:#F7F2EA; --inkt:#241c17;
+    --grijs:#7a7068; --lijn:#e6dccf; --wit:#fffdfa;
+    --radius:14px; --schaduw:0 12px 40px -16px rgba(36,28,23,.28);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:"Hanken Grotesk",sans-serif; color:var(--inkt);
+    background:
+      radial-gradient(1200px 600px at 85% -10%, var(--oranje-zacht), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, #e9efe7, transparent 55%),
+      var(--crème);
+    min-height:100vh; line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:48px 22px 80px}
+  header{margin-bottom:30px; opacity:0; animation:rise .7s .05s forwards}
+  .merk{display:flex; align-items:baseline; gap:12px}
+  .merk b{font-family:"Fraunces",serif; font-weight:600; font-size:30px; color:var(--oranje); letter-spacing:-.5px}
+  .merk span{color:var(--grijs); font-size:13px; font-weight:500}
+  h1{font-family:"Fraunces",serif; font-weight:500; font-size:clamp(26px,5vw,38px);
+     color:var(--blauw); margin:18px 0 6px; letter-spacing:-.5px; line-height:1.1}
+  .lead{color:var(--grijs); font-size:15.5px; max-width:54ch}
+  .card{
+    background:var(--wit); border:1px solid var(--lijn); border-radius:var(--radius);
+    box-shadow:var(--schaduw); padding:26px 26px 28px; margin-top:22px;
+    opacity:0; animation:rise .7s forwards;
+  }
+  .card:nth-of-type(1){animation-delay:.12s}
+  .card:nth-of-type(2){animation-delay:.2s}
+  .stap{display:flex; align-items:center; gap:10px; margin:0 0 16px}
+  .stap b{font-family:"Fraunces",serif; font-size:13px; color:var(--wit); background:var(--oranje);
+    width:26px; height:26px; border-radius:50%; display:grid; place-items:center; flex:none}
+  .stap h2{font-size:16px; margin:0; font-weight:600; letter-spacing:.1px}
+  label{display:block; font-size:12.5px; font-weight:600; color:var(--blauw);
+    text-transform:uppercase; letter-spacing:.6px; margin:0 0 5px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px 16px}
+  .full{grid-column:1/-1}
+  input[type=text],input[type=date],textarea,select{
+    width:100%; font:inherit; font-size:14.5px; color:var(--inkt); background:#fffdf8;
+    border:1.5px solid var(--lijn); border-radius:10px; padding:10px 12px; transition:.18s;
+  }
+  textarea{resize:vertical; min-height:64px}
+  input:focus,textarea:focus,select:focus{outline:none; border-color:var(--oranje);
+    box-shadow:0 0 0 4px var(--oranje-zacht)}
+  .veld{margin-bottom:2px}
+  .drop{
+    border:2px dashed var(--oranje-licht); border-radius:12px; background:#fffaf6;
+    padding:22px; text-align:center; cursor:pointer; transition:.18s; margin-top:4px;
+  }
+  .drop:hover{border-color:var(--oranje); background:var(--oranje-zacht)}
+  .drop.heeft{border-style:solid; border-color:var(--groen); background:#f3f7f1}
+  .drop .ico{font-size:26px}
+  .drop .hint{font-size:13px; color:var(--grijs); margin-top:4px}
+  .drop .naam{font-weight:600; color:var(--blauw)}
+  button.cta{
+    font:inherit; font-weight:700; font-size:15.5px; color:var(--wit);
+    background:var(--oranje); border:none; border-radius:11px; padding:14px 22px;
+    cursor:pointer; width:100%; margin-top:20px; transition:.18s; letter-spacing:.2px;
+  }
+  button.cta:hover:not(:disabled){background:#9c3b12; transform:translateY(-1px)}
+  button.cta:disabled{opacity:.45; cursor:not-allowed}
+  .status{margin-top:18px; font-size:14.5px; min-height:22px}
+  .status .bezig{color:var(--blauw)}
+  .status .fout{color:#a32; background:#fbeae5; border:1px solid #f1c9bd; padding:10px 12px; border-radius:10px}
+  .resultaat{margin-top:18px; padding:18px; border-radius:12px; background:#f3f7f1;
+    border:1px solid #d6e6d2; display:none}
+  .resultaat.toon{display:block; animation:rise .5s forwards}
+  .resultaat h3{margin:0 0 10px; font-family:"Fraunces",serif; font-weight:600; color:var(--blauw); font-size:18px}
+  .sterren-rij{display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px dashed var(--lijn)}
+  .sterren-rij:last-child{border:none}
+  .sterren-rij .s{color:var(--oranje); letter-spacing:2px}
+  .sterren-rij .leeg{color:var(--oranje-licht)}
+  a.download{display:inline-block; margin-top:16px; font-weight:700; color:var(--wit);
+    background:var(--blauw); padding:12px 20px; border-radius:11px; text-decoration:none; transition:.18s}
+  a.download:hover{background:#142b40}
+  footer{margin-top:30px; font-size:12.5px; color:var(--grijs); text-align:center; line-height:1.6}
+  .slot{display:inline-block; padding:2px 8px; background:var(--oranje-zacht); border-radius:6px; color:var(--oranje); font-weight:600}
+  @keyframes rise{from{opacity:0; transform:translateY(14px)} to{opacity:1; transform:none}}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+  /* Login */
+  #login{position:fixed; inset:0; z-index:50; display:grid; place-items:center; padding:20px;
+    background:
+      radial-gradient(1000px 500px at 80% -10%, var(--oranje-zacht), transparent 60%),
+      var(--crème);}
+  #login.weg{display:none}
+  .loginkaart{background:var(--wit); border:1px solid var(--lijn); border-radius:var(--radius);
+    box-shadow:var(--schaduw); padding:34px 30px; max-width:380px; width:100%; text-align:center;
+    animation:rise .5s forwards}
+  .loginkaart .merk{justify-content:center; margin-bottom:8px}
+  .loginkaart h2{font-family:"Fraunces",serif; font-weight:600; color:var(--blauw); margin:6px 0 4px; font-size:24px}
+  .loginkaart p{color:var(--grijs); font-size:14px; margin:0 0 18px}
+  .loginkaart input{width:100%; font:inherit; font-size:15px; padding:12px 14px; text-align:center;
+    border:1.5px solid var(--lijn); border-radius:10px; background:#fffdf8; margin-bottom:12px}
+  .loginkaart input:focus{outline:none; border-color:var(--oranje); box-shadow:0 0 0 4px var(--oranje-zacht)}
+  .loginkaart .cta{margin-top:0}
+  .loginfout{color:#a32; font-size:13.5px; min-height:18px; margin-top:10px}
+  .uitlog{cursor:pointer; color:var(--oranje); font-weight:600; text-decoration:underline}
+</style>
+</head>
+<body>
+<div id="login">
+  <div class="loginkaart">
+    <div class="merk"><b>reijn</b></div>
+    <h2>Inloggen</h2>
+    <p>Voer de toegangscode in om de rapportgenerator te gebruiken.</p>
+    <input type="password" id="codeInput" placeholder="Toegangscode" autocomplete="current-password">
+    <button class="cta" id="loginBtn">Inloggen</button>
+    <div class="loginfout" id="loginFout"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div class="merk"><b>reijn</b><span>meesters in HRM en leiderschap</span></div>
+    <h1>Quickscan-rapport genereren</h1>
+    <p class="lead">Vul de gegevens in, upload de ingevulde quickscan-Excel en download het opgemaakte rapport. De Excel wordt volledig in je browser verwerkt — alleen de tekstgeneratie loopt via Reijn's beveiligde n8n-koppeling.</p>
+  </header>
+
+  <div class="card">
+    <div class="stap"><b>1</b><h2>Gegevens van de scan</h2></div>
+    <div class="grid">
+      <div class="veld full"><label>Organisatienaam</label><input type="text" id="naam_organisatie" placeholder="bijv. Gemeente Voorbeeld"></div>
+      <div class="veld"><label>Afdeling (optioneel)</label><input type="text" id="afdeling" placeholder="bijv. Sociaal Domein"></div>
+      <div class="veld"><label>Type organisatie</label><input type="text" id="type_organisatie" placeholder="bijv. Gemeente (publiek)"></div>
+      <div class="veld"><label>Grootte</label><input type="text" id="grootte" placeholder="bijv. 420 medewerkers"></div>
+      <div class="veld"><label>Datum scan</label><input type="date" id="datum_scan"></div>
+      <div class="veld full"><label>Aandachtspunten uit intake</label><textarea id="aandachtspunten"></textarea></div>
+      <div class="veld full"><label>Specifieke vraagstukken (optioneel)</label><textarea id="specifieke_vraagstukken"></textarea></div>
+      <div class="veld"><label>Consultant</label><input type="text" id="consultant_naam" placeholder="Naam"></div>
+      <div class="veld"><label>Functietitel</label><input type="text" id="consultant_functie" placeholder="bijv. HR-consultant"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stap"><b>2</b><h2>Ingevulde quickscan</h2></div>
+    <div class="drop" id="drop">
+      <div class="ico">📄</div>
+      <div class="naam" id="dropNaam">Sleep de .xlsx hierheen of klik om te kiezen</div>
+      <div class="hint">Het tabblad “Invulveld” wordt automatisch uitgelezen</div>
+    </div>
+    <input type="file" id="excel" accept=".xlsx,.xls" hidden>
+
+    <button class="cta" id="genereer" disabled>Genereer rapport</button>
+    <div class="status" id="status"></div>
+
+    <div class="resultaat" id="resultaat">
+      <h3>Rapport klaar ✓</h3>
+      <div id="sterlijst"></div>
+      <a class="download" id="download" download>⬇ Download het PDF-rapport</a>
+    </div>
+  </div>
+
+  <footer>
+    Gegevens blijven in je browser — alleen de geanonimiseerde scan-tekst gaat naar de AI-koppeling voor de rapporttekst.<br>
+    Reijn · Quickscan HR &amp; Organisatie · <span class="uitlog" id="uitlog">uitloggen</span>
+  </footer>
+</div>
+
+<script>
+// ====================================================================
+//  CONFIG — vul dit in
+// ====================================================================
+const CONFIG = {
+  // De n8n Webhook-URL (Productie) die de AI-call doet:
+  WEBHOOK_URL: 'https://JOUW-N8N.app.n8n.cloud/webhook/quickscan-ai',
+  // Naam van de localStorage-sleutel waarin de toegangscode wordt bewaard
+  // (de code zelf staat NIET in dit bestand — die voert de gebruiker bij de login in):
+  STORAGE_KEY: 'reijn_quickscan_code',
+  // Pad naar het lege Reijn-sjabloon in deze repo:
+  TEMPLATE_URL: './rapportsjabloon.pdf',
+};
+
+const getCode = () => localStorage.getItem(CONFIG.STORAGE_KEY) || '';
+
+// ====================================================================
+//  Kernlogica (in Node geverifieerd, identiek hier)
+// ====================================================================
+const OORDEEL_PUNTEN = [['onderscheidend',5],['gewoon goed',4],['kan beter',2],['heel weinig',1],['onbekend',null]];
+
+function parseExcel(arrayBuffer){
+  const wb = XLSX.read(arrayBuffer, {type:'array'});
+  const ws = wb.Sheets['Invulveld ']; // let op: trailing space
+  if(!ws) throw new Error('Tabblad "Invulveld " niet gevonden in de Excel.');
+  const wsV = wb.Sheets['Voorblad'];
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const cell = (s,c,r)=>{const x=s[c+r];return x?(x.w??x.v??null):null;};
+  const txt = v=>(v==null?'':String(v)).trim();
+  const themas=[]; let cur=null,mode=null;
+  for(let r=range.s.r+1;r<=range.e.r+1;r++){
+    const c=txt(cell(ws,'C',r)); if(!c)continue; const up=c.toUpperCase();
+    if(up.endsWith('- KENGETALLEN')){cur={nr:themas.length+1,naam:c.replace(/\s*-\s*KENGETALLEN$/i,'').trim(),kengetallen:[],scores:[],totaaloordeel:null,overall:null};themas.push(cur);mode='keng';continue;}
+    if(up.includes('SCORE OP ONDERDELEN')){mode='score';continue;}
+    if(up.startsWith('TOTAALSCORE')){if(cur)cur.totaaloordeel=txt(cell(ws,'D',r));mode=null;continue;}
+    if(up.includes('OVERALL TOELICHTING')){if(cur)cur.overall=txt(cell(ws,'A',r+1));mode=null;continue;}
+    if(!cur||!mode)continue;
+    if(mode==='keng')cur.kengetallen.push({label:c,waarde:txt(cell(ws,'D',r)),toelichting:txt(cell(ws,'E',r))});
+    else cur.scores.push({vraag:c,oordeel:txt(cell(ws,'D',r)),toelichting:txt(cell(ws,'E',r))});
+  }
+  for(const t of themas){
+    const pts=t.scores.map(s=>{const o=(s.oordeel||'').toLowerCase();for(const[m,p]of OORDEEL_PUNTEN)if(o.includes(m))return p;return null;}).filter(p=>p!==null);
+    t.sterren=pts.length?Math.min(5,Math.max(1,Math.round(pts.reduce((a,b)=>a+b,0)/pts.length))):null;
+    t.scores_ingevuld=pts.length; t.scores_totaal=t.scores.length;
+  }
+  const voorblad = wsV?{organisatie:txt(cell(wsV,'A',7)),aandachtspunt:txt(cell(wsV,'A',10)),status:txt(cell(wsV,'A',13))}:{};
+  return {voorblad, themas};
+}
+
+async function fillPdf(tplBytes, scan, ai){
+  const {PDFDocument,rgb,PDFName,PDFNumber,PDFDict}=PDFLib;
+  const TV={1:{d:'Tekstveld 7',w:'Wat valt op? 1',s:'Text Field 4',p:'Wat zien we terug in de praktijk 1'},2:{d:'Tekstveld 8',w:'Wat valt op?',s:'Reflectievraag 1',p:'Wat zien we terug in de praktijk'},3:{d:'Tekstveld 9',w:'Wat valt op? 4',s:'Text Field 6',p:'Wat zien we terug in de praktijk 2'},4:{d:'Tekstveld 10',w:'Wat valt op? 5',s:'Reflectievraag 2',p:'Wat zien we terug in de praktijk 3'},5:{d:'Tekstveld 11',w:'Wat valt op? 6',s:'Text Field 7',p:'Wat zien we terug in de praktijk 4'},6:{d:'Tekstveld 12',w:'Wat valt op? 7',s:'Reflectievraag 3',p:'Wat zien we terug in de praktijk 5'},7:{d:'Tekstveld 13',w:'Wat valt op? 8',s:'Text Field 8',p:'Wat zien we terug in de praktijk 6'},8:{d:'Tekstveld 14',w:'Wat valt op? 9',s:'Reflectievraag 4',p:'Wat zien we terug in de praktijk 7'}};
+  const CV={naamVoorblad:'Naam klant voorzijde 2',datumVoorblad:'datum 2',naamOrg:'Naam organisatie & afdeling 1',typeOrg:'Type organisatie 1',datumScan:'Datum scan 1',grootte:'Grootte 1',aandachtspunten:'Aandachtspunten uit intake 1',vraagstukken:'Specifieke vraagstukken (optioneel) ',consultantNaam:'naam consultant',consultantFunctie:'functietitel consultant'};
+  const KX={reflectie:'Wat valt op? 2',suggesties:'Wat valt op? 3'};
+  const SY={1:553.65,2:491.95,3:431.21,4:370.51,5:308.20,6:245.89,7:185.12,8:124.02};
+  const SX=[229.09,252.26,275.90,299.31,322.73],SH=15.38;
+  const FILL=rgb(182/255,72/255,23/255),EMPTY=rgb(246/255,175/255,157/255);
+  const RE=/^([Kk]nop )(\d+|1[a-e] \d+)$/;
+  const pdf=await PDFDocument.load(tplBytes); const form=pdf.getForm();
+  const setText=(name,value)=>{let f;try{f=form.getTextField(name);}catch(e){return;}f.setText(value==null?'':String(value));f.acroField.getWidgets().forEach(w=>{const d=w.dict;const mk=d.lookupMaybe(PDFName.of('MK'),PDFDict);if(mk){mk.delete(PDFName.of('BC'));mk.delete(PDFName.of('BG'));}const bs=d.lookupMaybe(PDFName.of('BS'),PDFDict);if(bs)bs.set(PDFName.of('W'),PDFNumber.of(0));d.set(PDFName.of('Border'),pdf.context.obj([0,0,0]));});};
+  const starPath=s=>{const cx=s/2,cy=s/2,ro=s*0.5,ri=ro*0.382;let p='';for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5;const r=(i%2===0)?ro:ri;p+=(i===0?`M ${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}`:` L ${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}`);}return p+' Z';};
+  const m=scan.meta; const naamAfd=m.naam_organisatie+(m.afdeling?` – ${m.afdeling}`:'');
+  setText(CV.naamVoorblad,m.naam_organisatie); setText(CV.datumVoorblad,m.datum_scan); setText(CV.naamOrg,naamAfd);
+  setText(CV.typeOrg,m.datum_scan);            // veld staat onder label "Datum scan"
+  setText(CV.datumScan,m.type_organisatie);    // veld staat onder label "Type organisatie"
+  setText(CV.grootte,m.grootte); setText(CV.aandachtspunten,m.aandachtspunten); setText(CV.vraagstukken,m.specifieke_vraagstukken);
+  setText(CV.consultantNaam,m.consultant_naam); setText(CV.consultantFunctie,m.consultant_functie);
+  for(let n=1;n<=8;n++){const v=TV[n];const a=(ai.themas&&(ai.themas[n]||ai.themas[String(n)]))||{};setText(v.d,a.korte_duiding);setText(v.w,a.wat_valt_op);setText(v.s,a.secundair);setText(v.p,a.praktijk);}
+  setText(KX.reflectie,ai.kansen?.reflectie); setText(KX.suggesties,ai.kansen?.suggesties);
+  for(const f of form.getFields()){const fn=f.getName();if(RE.test(fn)||fn==='Afbeelding1_af_image'){try{form.removeField(f);}catch(e){}}}
+  const p4=pdf.getPages()[3]; const path=starPath(SH);
+  for(let n=1;n<=8;n++){const t=scan.themas.find(x=>x.nr===n);const st=t&&t.sterren?t.sterren:0;const yTop=SY[n]+SH;for(let i=0;i<5;i++)p4.drawSvgPath(path,{x:SX[i],y:yTop,color:(i+1)<=st?FILL:EMPTY,borderWidth:0});}
+  form.updateFieldAppearances();
+  return await pdf.save();
+}
+
+async function vraagAITekst(scan){
+  const res = await fetch(CONFIG.WEBHOOK_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-app-key':getCode()},
+    body: JSON.stringify({scan}),
+  });
+  if(res.status===401 || res.status===403){ logout(); throw new Error('Toegangscode onjuist — log opnieuw in.'); }
+  if(!res.ok) throw new Error(`AI-koppeling gaf status ${res.status}. Controleer de webhook-URL.`);
+  let data = await res.json();
+  // Tolerant: accepteer {themas,kansen} (Parse AI-node) óf rauwe LLM-Chain output.
+  if(data && data.themas) return data;
+  let content = data?.response?.text ?? data?.text ?? data?.output
+             ?? data?.choices?.[0]?.message?.content ?? data?.content ?? data;
+  if(typeof content !== 'string') return content;
+  content = content.replace(/```json\s*|```/g,'').trim();
+  const a = content.indexOf('{'), b = content.lastIndexOf('}');
+  if(a>=0 && b>a) content = content.slice(a,b+1);
+  return JSON.parse(content);
+}
+
+// ====================================================================
+//  UI-bedrading
+// ====================================================================
+const $ = id => document.getElementById(id);
+let excelBuffer = null;
+
+// ---- Login (PoC: gedeelde code in localStorage; n8n valideert 'm echt) ----
+function toonApp(ingelogd){ $('login').classList.toggle('weg', ingelogd); }
+function login(){
+  const code = $('codeInput').value.trim();
+  if(!code){ $('loginFout').textContent = 'Vul een toegangscode in.'; return; }
+  localStorage.setItem(CONFIG.STORAGE_KEY, code);
+  $('loginFout').textContent = '';
+  toonApp(true);
+}
+function logout(){
+  localStorage.removeItem(CONFIG.STORAGE_KEY);
+  $('codeInput').value = '';
+  toonApp(false);
+}
+$('loginBtn').addEventListener('click', login);
+$('codeInput').addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
+$('uitlog').addEventListener('click', logout);
+toonApp(!!getCode());   // direct door als er al een code is
+
+$('datum_scan').valueAsDate = new Date();
+
+const drop = $('drop'), excelInput = $('excel');
+drop.addEventListener('click', ()=>excelInput.click());
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.style.borderColor='var(--oranje)';}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.style.borderColor='';}));
+drop.addEventListener('drop', ev=>{ if(ev.dataTransfer.files[0]) laadExcel(ev.dataTransfer.files[0]); });
+excelInput.addEventListener('change', ()=>{ if(excelInput.files[0]) laadExcel(excelInput.files[0]); });
+
+async function laadExcel(file){
+  excelBuffer = await file.arrayBuffer();
+  drop.classList.add('heeft');
+  $('dropNaam').textContent = file.name;
+  drop.querySelector('.ico').textContent = '✓';
+  $('genereer').disabled = false;
+}
+
+function metaUitForm(){
+  const g = id => $(id).value.trim();
+  let datum = $('datum_scan').value;
+  if(datum){ const [y,mo,d]=datum.split('-'); datum = `${+d} ${['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'][+mo-1]} ${y}`; }
+  return {
+    naam_organisatie:g('naam_organisatie'), afdeling:g('afdeling'),
+    type_organisatie:g('type_organisatie'), grootte:g('grootte'),
+    datum_scan:datum||new Date().toLocaleDateString('nl-NL'),
+    aandachtspunten:g('aandachtspunten'), specifieke_vraagstukken:g('specifieke_vraagstukken'),
+    consultant_naam:g('consultant_naam'), consultant_functie:g('consultant_functie'),
+  };
+}
+
+function setStatus(html, soort){ $('status').innerHTML = html ? `<span class="${soort||'bezig'}">${html}</span>` : ''; }
+
+$('genereer').addEventListener('click', async ()=>{
+  if(!excelBuffer) return;
+  if(!$('naam_organisatie').value.trim()){ setStatus('Vul eerst de organisatienaam in.','fout'); return; }
+  $('genereer').disabled = true; $('resultaat').classList.remove('toon');
+  try{
+    setStatus('⏳ Excel uitlezen…');
+    const parsed = parseExcel(excelBuffer);
+    const scan = { meta: metaUitForm(), voorblad: parsed.voorblad, themas: parsed.themas };
+
+    setStatus('🤖 Rapporttekst genereren via de AI-koppeling…');
+    const ai = await vraagAITekst(scan);
+
+    setStatus('📄 Sjabloon ophalen en invullen…');
+    const tpl = await fetch(CONFIG.TEMPLATE_URL).then(r=>{ if(!r.ok) throw new Error('Sjabloon niet gevonden op '+CONFIG.TEMPLATE_URL); return r.arrayBuffer(); });
+    const pdfBytes = await fillPdf(tpl, scan, ai);
+
+    const blob = new Blob([pdfBytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    const bestand = `Quickscan_HR_${scan.meta.naam_organisatie.replace(/[^\w\-]+/g,'_')}.pdf`;
+    const a = $('download'); a.href = url; a.download = bestand;
+
+    $('sterlijst').innerHTML = scan.themas.map(t=>{
+      const s = t.sterren||0;
+      return `<div class="sterren-rij"><span>${t.naam}</span><span><span class="s">${'★'.repeat(s)}</span><span class="leeg">${'★'.repeat(5-s)}</span></span></div>`;
+    }).join('');
+    $('resultaat').classList.add('toon');
+    setStatus('');
+  }catch(err){
+    console.error(err);
+    setStatus('Er ging iets mis: '+err.message,'fout');
+  }finally{
+    $('genereer').disabled = false;
+  }
+});
+</script>
+</body>
+</html>
