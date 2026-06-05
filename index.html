@@ -333,6 +333,7 @@ $('genereer').addEventListener('click', async ()=>{
     setStatus('⏳ Excel uitlezen…');
     const parsed = parseExcel(excelBuffer);
     const scan = { meta: metaUitForm(), voorblad: parsed.voorblad, themas: parsed.themas };
+    console.log('scan.meta →', scan.meta);   // diagnose: controleer hier of aandachtspunten gevuld is
 
     setStatus('🤖 Rapporttekst genereren via de AI-koppeling…');
     const ai = await vraagAITekst(scan);
