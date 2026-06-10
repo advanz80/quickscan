@@ -109,6 +109,45 @@
   .loginkaart .cta{margin-top:0}
   .loginfout{color:#a32; font-size:13.5px; min-height:18px; margin-top:10px}
   .uitlog{cursor:pointer; color:var(--oranje); font-weight:600; text-decoration:underline}
+
+  /* ===== Tabs ===== */
+  .tabs{display:flex; gap:8px; margin:0 0 6px; padding:4px; background:var(--wit);
+    border:1px solid var(--lijn); border-radius:12px; box-shadow:var(--schaduw);
+    opacity:0; animation:rise .7s .1s forwards}
+  .tabknop{flex:1; font:inherit; font-weight:600; font-size:14.5px; color:var(--grijs);
+    background:transparent; border:none; border-radius:9px; padding:11px 14px; cursor:pointer; transition:.18s}
+  .tabknop:hover{color:var(--blauw)}
+  .tabknop.actief{background:var(--oranje); color:var(--wit)}
+  .tabpaneel{display:none}
+  .tabpaneel.actief{display:block}
+  /* ===== Chat ===== */
+  .chatkaart{display:flex; flex-direction:column}
+  .chatlog{display:flex; flex-direction:column; gap:14px; min-height:340px; max-height:54vh;
+    overflow-y:auto; padding:6px 2px 8px; margin-top:4px}
+  .msg{display:flex; flex-direction:column; max-width:88%}
+  .msg.ik{align-self:flex-end; align-items:flex-end}
+  .msg.bot{align-self:flex-start; align-items:flex-start}
+  .msg .afz{font-size:11px; font-weight:700; color:var(--oranje); text-transform:uppercase;
+    letter-spacing:.6px; margin:0 4px 3px}
+  .msg .bel{padding:11px 14px; border-radius:14px; font-size:14.5px; line-height:1.5}
+  .msg.ik .bel{background:var(--oranje); color:var(--wit); border-bottom-right-radius:5px}
+  .msg.bot .bel{background:#fffaf6; color:var(--inkt); border:1px solid var(--lijn); border-bottom-left-radius:5px}
+  .msg.bot .bel b{color:var(--blauw)}
+  .bel.typ{display:inline-flex; gap:5px; align-items:center}
+  .bel.typ span{width:6px; height:6px; border-radius:50%; background:var(--oranje-licht); animation:knipper 1.2s infinite}
+  .bel.typ span:nth-child(2){animation-delay:.2s}
+  .bel.typ span:nth-child(3){animation-delay:.4s}
+  @keyframes knipper{0%,60%,100%{opacity:.3} 30%{opacity:1}}
+  .chatinvoer{display:flex; gap:10px; align-items:flex-end; margin-top:12px;
+    border-top:1px solid var(--lijn); padding-top:14px}
+  .chatinvoer textarea{flex:1; resize:none; max-height:140px; min-height:46px; font-size:14.5px;
+    border:1.5px solid var(--lijn); border-radius:11px; padding:12px 14px; background:#fffdf8; font-family:inherit; color:var(--inkt)}
+  .chatinvoer textarea:focus{outline:none; border-color:var(--oranje); box-shadow:0 0 0 4px var(--oranje-zacht)}
+  .chatsend{flex:none; width:46px; height:46px; border:none; border-radius:11px; background:var(--oranje);
+    color:var(--wit); font-size:17px; cursor:pointer; transition:.18s}
+  .chatsend:hover:not(:disabled){background:#9c3b12}
+  .chatsend:disabled{opacity:.45; cursor:not-allowed}
+  .chatonder{text-align:right; margin-top:10px; font-size:12.5px}
 </style>
 </head>
 <body>
@@ -130,6 +169,12 @@
     <p class="lead">Vul de gegevens in, upload de ingevulde quickscan-Excel en download het opgemaakte rapport. De Excel wordt volledig in je browser verwerkt — alleen de tekstgeneratie loopt via Reijn's beveiligde n8n-koppeling.</p>
   </header>
 
+  <div class="tabs" role="tablist">
+    <button class="tabknop actief" data-tab="quickscan">Quickscan</button>
+    <button class="tabknop" data-tab="chat">HR-adviesteam</button>
+  </div>
+
+  <div class="tabpaneel actief" id="tab-quickscan">
   <div class="card">
     <div class="stap"><b>1</b><h2>Gegevens van de scan</h2></div>
     <div class="grid">
@@ -164,6 +209,19 @@
       <a class="download" id="download" download>⬇ Download het PDF-rapport</a>
     </div>
   </div>
+  </div><!-- /tab-quickscan -->
+
+  <div class="tabpaneel" id="tab-chat">
+    <div class="card chatkaart">
+      <div class="stap"><b>★</b><h2>HR-adviesteam — WendAI</h2></div>
+      <div class="chatlog" id="chatLog"></div>
+      <div class="chatinvoer">
+        <textarea id="chatInput" rows="1" placeholder="Beschrijf je HR-casus of stel een vraag…"></textarea>
+        <button class="chatsend" id="chatSend" aria-label="Versturen">➤</button>
+      </div>
+      <div class="chatonder"><span class="uitlog" id="chatReset">nieuw gesprek</span></div>
+    </div>
+  </div>
 
   <footer>
     Gegevens blijven in je browser — alleen de geanonimiseerde scan-tekst gaat naar de AI-koppeling voor de rapporttekst.<br>
@@ -183,6 +241,10 @@ const CONFIG = {
   STORAGE_KEY: 'reijn_quickscan_code',
   // Pad naar het lege Reijn-sjabloon in deze repo:
   TEMPLATE_URL: './rapportsjabloon.pdf',
+  // De n8n Chat-webhook (chatTrigger) van de consultant-flow "HR advies team - consultants (v2)".
+  // LET OP: controleer het exacte pad in de Chat Trigger-node ná import (n8n kan het webhookId
+  // opnieuw genereren). Neem dan de URL uit de node over.
+  CHAT_WEBHOOK_URL: 'https://pgrmmgtdriessen.app.n8n.cloud/webhook/d011556d-41e9-4707-a10a-6cf76e701bd0/chat',
 };
 
 const getCode = () => localStorage.getItem(CONFIG.STORAGE_KEY) || '';
@@ -369,6 +431,114 @@ $('genereer').addEventListener('click', async ()=>{
     $('genereer').disabled = false;
   }
 });
+
+// ====================================================================
+//  TABS + CHAT (HR-adviesteam — WendAI, stille orkestratie)
+// ====================================================================
+// Tabwissel
+function tabWissel(naam){
+  document.querySelectorAll('.tabpaneel').forEach(p=>p.classList.toggle('actief', p.id==='tab-'+naam));
+  document.querySelectorAll('.tabknop').forEach(b=>b.classList.toggle('actief', b.dataset.tab===naam));
+  if(naam==='chat') setTimeout(()=>$('chatInput')?.focus(), 60);
+}
+document.querySelectorAll('.tabknop').forEach(b=>b.addEventListener('click', ()=>tabWissel(b.dataset.tab)));
+
+// sessionId koppelt de chat aan het n8n-geheugen (Simple Memory), zodat doorvragen context houdt
+let chatSessie = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'sess-'+Date.now()+'-'+Math.random().toString(16).slice(2);
+let chatBezig = false;
+const chatLog = $('chatLog'), chatInput = $('chatInput'), chatSend = $('chatSend');
+
+function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t==null?'':String(t); return d.innerHTML; }
+function opmaak(t){
+  let h = escapeHtml(t);
+  h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  h = h.replace(/^\s*[-*•]\s+/gm, '• ');
+  h = h.replace(/\n/g, '<br>');
+  return h;
+}
+function bubbel(rol, tekst){
+  const el = document.createElement('div');
+  el.className = 'msg ' + (rol==='ik'?'ik':'bot');
+  el.innerHTML = (rol==='ik')
+    ? '<div class="bel">'+escapeHtml(tekst)+'</div>'
+    : '<div class="afz">WendAI</div><div class="bel">'+opmaak(tekst)+'</div>';
+  chatLog.appendChild(el);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return el;
+}
+function typIndicator(){
+  const el = document.createElement('div');
+  el.className = 'msg bot';
+  el.innerHTML = '<div class="afz">WendAI</div><div class="bel typ"><span></span><span></span><span></span></div>';
+  chatLog.appendChild(el); chatLog.scrollTop = chatLog.scrollHeight;
+  return el;
+}
+
+// Tolerante parser: haalt WendAI's tekst(en) uit de n8n-respons.
+// De streaming-node geeft {output: "[{agent:'wendai', text:'...'}]"} terug.
+function haalBerichten(raw){
+  if(!raw || !raw.trim()) return [];
+  let data;
+  try { data = JSON.parse(raw); } catch(e){ return [raw.trim()]; }
+  if(Array.isArray(data)) data = data[0] || {};
+  let out = (data && (data.output ?? data.text ?? (data.response && data.response.text))) ?? data;
+  if(typeof out === 'string'){
+    const str = out.trim();
+    if(str.startsWith('[') || str.startsWith('{')){
+      try{
+        const parsed = JSON.parse(str);
+        const lijst = Array.isArray(parsed) ? parsed : [parsed];
+        const tk = lijst.map(m => typeof m==='string' ? m : (m.text || m.output || '')).filter(Boolean);
+        if(tk.length) return tk;
+      }catch(e){ /* val terug op rauwe string */ }
+    }
+    return [str];
+  }
+  if(Array.isArray(out)) return out.map(m => typeof m==='string' ? m : (m.text || m.output || '')).filter(Boolean);
+  if(out && typeof out==='object') return [out.text || out.output || JSON.stringify(out)];
+  return [];
+}
+
+async function stuurChat(){
+  const tekst = chatInput.value.trim();
+  if(!tekst || chatBezig) return;
+  chatBezig = true; chatSend.disabled = true;
+  bubbel('ik', tekst);
+  chatInput.value=''; chatInput.style.height='auto';
+  const ind = typIndicator();
+  try{
+    const res = await fetch(CONFIG.CHAT_WEBHOOK_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json', 'x-app-key': getCode()},
+      body: JSON.stringify({ action:'sendMessage', sessionId: chatSessie, chatInput: tekst }),
+    });
+    if(res.status===401 || res.status===403){ logout(); throw new Error('Toegangscode onjuist — log opnieuw in.'); }
+    if(!res.ok) throw new Error('De chat-koppeling gaf status '+res.status+'. Controleer de webhook-URL en CORS in n8n.');
+    const raw = await res.text();
+    ind.remove();
+    const teksten = haalBerichten(raw);
+    if(!teksten.length) bubbel('bot','(Geen antwoord ontvangen — controleer de laatste uitvoering in n8n.)');
+    else teksten.forEach(t => bubbel('bot', t));
+  }catch(err){
+    ind.remove();
+    bubbel('bot', '⚠ ' + err.message);
+  }finally{
+    chatBezig=false; chatSend.disabled=false; chatInput.focus();
+  }
+}
+
+chatSend.addEventListener('click', stuurChat);
+chatInput.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); stuurChat(); } });
+chatInput.addEventListener('input', ()=>{ chatInput.style.height='auto'; chatInput.style.height = Math.min(140, chatInput.scrollHeight)+'px'; });
+$('chatReset').addEventListener('click', ()=>{
+  chatSessie = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'sess-'+Date.now();
+  chatLog.innerHTML='';
+  welkomChat();
+});
+function welkomChat(){
+  bubbel('bot','Beschrijf je HR-casus — denk aan functie, dienstverband, de kern van het probleem en de fase/tijdlijn — dan denk ik met je mee. Vraag gerust om een rapport als je een uitgewerkt document wilt.');
+}
+welkomChat();
 </script>
 </body>
 </html>
